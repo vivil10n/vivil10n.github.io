@@ -1,0 +1,629 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Create Plan Thumbnail</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Newsreader:opsz,wght@6..72,500;6..72,600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<!--
+  "Create plan": an unofficial, speculative feature concept for Milanote.
+  Not affiliated with or endorsed by Milanote.
+  Photography: Unsplash (free licence), loaded from the Unsplash CDN.
+  The studio, client, people and project are fictional.
+-->
+<style>
+  /* ---------- Tokens: warm neutral workspace, blue for selection and links ---------- */
+  :root {
+    --canvas: #EDEEF0;
+    --ink: #1E1F22;
+    --ink-2: #4D5057;
+    --ink-3: #8E9198;
+    --line: #E4E5E8;
+    --line-2: #EFF0F2;
+    --fill: #F4F5F7;
+    --accent: 47, 123, 246;
+    --brand: #E8603C;                                 /* Milanote orange, for the AI mark */
+    --serif: "Newsreader", Georgia, serif;
+    --p1: #C9B48C; --p2: #D9A47E; --p3: #A8B596;      /* phases: sand, clay, sage */
+    --card: 0 0 0 1px rgba(30, 35, 45, .05), 0 1px 2px rgba(30, 35, 45, .08), 0 8px 20px -12px rgba(30, 35, 45, .16);
+    --float: 0 0 0 1px rgba(30, 35, 45, .06), 0 6px 14px rgba(30, 35, 45, .06), 0 32px 64px -24px rgba(30, 35, 45, .26);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--canvas);
+    font-family: "Geist", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+  svg.i { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+  /* ---------- Stage: 16:9 Milanote canvas ---------- */
+  .stage {
+    position: absolute; left: 50%; top: 50%; width: 1600px; height: 900px; transform-origin: 0 0;
+    background-color: var(--canvas);
+    background-image: radial-gradient(circle, rgba(40, 45, 55, .12) 1.2px, transparent 1.4px);
+    background-size: 24px 24px; background-position: 12px 12px;
+    overflow: hidden;
+  }
+  .board { position: absolute; left: 32px; top: 28px; width: 1600px; height: 900px; will-change: transform; }
+  /* ---------- Milanote chrome ---------- */
+  .appbar {
+    position: absolute; left: 0; right: 0; top: 0; height: 52px; z-index: 8;
+    display: flex; align-items: center; padding: 0 20px 0 18px;
+    background: #fff; border-bottom: 1px solid var(--line); font-size: 13px; color: var(--ink-2);
+  }
+  .crumbs { display: flex; align-items: center; gap: 7px; }
+  .crumbs .home { width: 19px; height: 19px; border-radius: 50%; background: var(--ink); color: #fff; display: grid; place-items: center; }
+  .crumbs .home svg.i { width: 10px; height: 10px; stroke-width: 1.8; }
+  .crumbs b { font-weight: 500; color: var(--ink); }
+  .crumbs .sep { color: #C3C6CB; margin: 0 2px; }
+  .crumbs .bi { width: 14px; height: 14px; border-radius: 3px; }
+  .board-title { position: absolute; left: 50%; transform: translateX(-50%); font-family: var(--serif); font-size: 19px; font-weight: 600; letter-spacing: -0.01em; color: var(--ink); }
+  .appbar .right { margin-left: auto; display: flex; align-items: center; gap: 18px; }
+  .appbar .right span { display: flex; align-items: center; gap: 4px; }
+  .appbar .right svg.i { width: 12px; height: 12px; }
+  .avs .av { border: 2px solid #fff; margin-left: -6px; width: 24px; height: 24px; }
+  .rail {
+    position: absolute; left: 0; top: 52px; bottom: 0; width: 64px; z-index: 8;
+    display: flex; flex-direction: column; align-items: center; padding-top: 10px;
+    background: #FAFAFB; border-right: 1px solid var(--line);
+  }
+  .tool { width: 56px; height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; color: #4A4F57; }
+  .tool small { font-size: 10px; color: #7A7F87; }
+  .tool svg.i { width: 20px; height: 20px; stroke-width: 1.4; }
+  .tool .boardicon { width: 20px; height: 20px; border-radius: 4px; background: #5B7FE0; display: grid; place-items: center; }
+  .tool .boardicon i { width: 8px; height: 8px; border-radius: 2px; background: #fff; }
+  .rail hr { width: 28px; border: 0; border-top: 1px solid var(--line); margin: 6px 0; }
+
+
+  /* ---------- Board cards ---------- */
+  .card {
+    position: absolute; background: #fff; border-radius: 3px; box-shadow: var(--card);
+    outline: 2px solid transparent; outline-offset: 3px;
+  }
+  .card.img { overflow: hidden; }
+  .card > img { display: block; width: 100%; object-fit: cover; background: #E6E4DF; }
+  .caption { padding: 10px 14px 11px; font-size: 13.5px; color: var(--ink-2); }
+  .note { padding: 15px 17px 16px; font-size: 14px; line-height: 1.5; }
+  .note h4 { font-size: 14.5px; font-weight: 600; letter-spacing: -0.015em; margin-bottom: 4px; }
+  .note .muted { color: var(--ink-3); margin-top: 6px; }
+  .note.sticky { background: #F6EFD9; }
+  .dash { display: flex; gap: 8px; }
+  .dash::before { content: "–"; color: var(--ink-3); }
+  .by { display: flex; align-items: center; gap: 7px; margin-top: 10px; font-size: 12.5px; color: #8C7F5E; }
+  .specimen { font-family: "Instrument Serif", Georgia, serif; font-size: 64px; line-height: 1; letter-spacing: -0.01em; }
+  .specimen i { color: #9A7F5A; }
+  .swatch .chip { height: 60px; }
+  .swatch .caption { padding: 7px 10px 8px; font-size: 12px; line-height: 1.3; }
+  .swatch .caption span { display: block; font-size: 11px; color: var(--ink-3); }
+
+  .av { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 8.5px; font-weight: 600; flex: none; }
+  .av.ar { background: #F6DFD0; color: #9A4F2C; } .av.jo { background: #DFEBD9; color: #3E6B3A; } .av.ml { background: #E6E1F1; color: #5A4C86; }
+
+  /* ---------- Selection action ---------- */
+  .ctx {
+    position: absolute; height: 42px; padding: 0 4px 0 14px; border-radius: 8px;
+    display: flex; align-items: center; gap: 2px; background: #fff; box-shadow: var(--float);
+    font-size: 13.5px; color: var(--ink-2); white-space: nowrap; opacity: 0; z-index: 5;
+  }
+  .ctx .count { font-weight: 500; color: var(--ink); margin-right: 8px; }
+  .ctx .ib { width: 32px; height: 32px; border-radius: 6px; display: grid; place-items: center; color: #6E7178; }
+  .ctx .vr { width: 1px; height: 20px; background: var(--line); margin: 0 6px; }
+  .ctx .act { height: 34px; padding: 0 12px 0 9px; border-radius: 6px; display: flex; align-items: center; gap: 7px; font-weight: 500; color: var(--ink); }
+  .spark { color: var(--brand); }
+
+  /* ---------- Plan preview panel ---------- */
+  .panel {
+    position: absolute; left: 1100px; width: 460px;
+    background: #fff; border-radius: 10px; box-shadow: var(--float); opacity: 0; z-index: 6;
+  }
+  .p-head { display: flex; align-items: center; gap: 8px; height: 52px; padding: 0 18px 0 20px; border-bottom: 1px solid var(--line-2); }
+  .p-head h2 { font-size: 14px; font-weight: 600; letter-spacing: -0.015em; }
+  .beta { height: 19px; padding: 0 6px; border-radius: 5px; background: var(--fill); color: var(--ink-2); font-size: 10.5px; font-weight: 600; line-height: 19px; }
+  .from { margin-left: auto; display: flex; align-items: center; gap: 9px; font-size: 12.5px; color: var(--ink-3); }
+  .stack { display: flex; }
+  .thumb {
+    width: 26px; height: 26px; border-radius: 5px; border: 2px solid #fff; margin-left: -8px; flex: none;
+    overflow: hidden; background: var(--fill); box-shadow: 0 1px 2px rgba(40,34,26,.14);
+  }
+  .thumb:first-child { margin-left: 0; }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .thumb.doc { background: #fff; padding: 4px; }
+  .thumb.doc i { display: block; height: 2px; border-radius: 1px; background: #CFCBC3; margin-top: 3px; }
+  .thumb.doc i:first-child { background: var(--ink); width: 70%; margin-top: 1px; }
+
+  .p-body { padding: 18px 20px 4px; }
+  .p-title { font-family: var(--serif); font-size: 24px; font-weight: 600; letter-spacing: -0.01em; }
+  .p-sub { font-size: 13px; color: var(--ink-3); margin-top: 2px; }
+
+  .gantt { position: relative; padding: 10px 12px 8px; border-radius: 8px; background: var(--fill); }
+  .panel .gantt { margin: 14px 0 4px; }
+  .g-row, .g-months { display: grid; grid-template-columns: 112px 1fr; align-items: center; }
+  .g-months { height: 16px; font-size: 11px; color: var(--ink-3); }
+  .track { position: relative; height: 22px; }
+  .g-months .track { height: 16px; }
+  .track .m { position: absolute; top: 0; }
+  .g-row { font-size: 12.5px; color: var(--ink-2); }
+  .g-row .name { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+  .bar { position: absolute; top: 6px; height: 10px; border-radius: 3px; transform-origin: 0 50%; }
+  .grid-lines { position: absolute; left: 124px; right: 12px; top: 26px; bottom: 8px; pointer-events: none; }
+  .grid-lines i { position: absolute; top: 0; bottom: 0; width: 1px; background: #E8E5DF; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+
+  .phase { margin-top: 10px; }
+  .phase-h { display: flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 600; letter-spacing: -0.01em; height: 28px; }
+  .phase-h small { margin-left: auto; font-size: 12px; font-weight: 400; color: var(--ink-3); letter-spacing: 0; }
+  .task {
+    position: relative; display: flex; align-items: center; gap: 11px; height: 36px;
+    padding: 0 8px; margin: 0 -8px; border-radius: 6px; font-size: 13.5px; color: var(--ink);
+  }
+  .cb { width: 14px; height: 14px; border-radius: 3.5px; border: 1.4px solid #ACA9A2; flex: none; }
+  .task .thumb.src { margin-left: auto; width: 24px; height: 24px; border: 0; box-shadow: 0 0 0 1px rgba(40,34,26,.1); outline: 1.5px solid transparent; outline-offset: 2px; }
+  .task .thumb.src.doc { padding: 5px; }
+  .due { width: 44px; text-align: right; font-size: 12px; color: var(--ink-3); }
+  .p-foot { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding: 13px 16px 13px 20px; border-top: 1px solid var(--line-2); }
+  .p-foot .meta { margin-right: auto; font-size: 12.5px; color: var(--ink-3); }
+  .btn { white-space: nowrap; height: 34px; padding: 0 14px; border-radius: 7px; display: inline-flex; align-items: center; font-size: 13.5px; font-weight: 500; color: var(--ink); background: #fff; box-shadow: 0 0 0 1px var(--line); }
+  .btn.primary { background: var(--ink); color: #fff; box-shadow: none; }
+
+  .peek {
+    position: absolute; width: 236px; background: #fff; border-radius: 6px; box-shadow: var(--float);
+    opacity: 0; z-index: 7; transform-origin: 100% 50%;
+  }
+  .peek .kind { display: flex; align-items: center; gap: 6px; padding: 8px 12px; font-size: 11.5px; color: var(--ink-3); border-bottom: 1px solid var(--line-2); }
+  .peek .kind svg.i { width: 12px; height: 12px; }
+  .peek .note { font-size: 13px; padding: 11px 14px 13px; }
+  .peek .note h4 { font-size: 13.5px; }
+
+  /* ---------- The plan, placed on the board as a Milanote column ---------- */
+  .column { position: absolute; width: 340px; padding: 0 9px 9px; border-radius: 4px; background: #fff; box-shadow: var(--card); opacity: 0; }
+  .column > header { text-align: center; padding: 14px 0 10px; }
+  .column > header h3 { font-family: var(--serif); font-size: 17px; font-weight: 600; letter-spacing: -0.005em; }
+  .column > header small { display: block; font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+  .inner { position: relative; background: #fff; border-radius: 2px; box-shadow: 0 0 0 1px var(--line); }
+  .inner + .inner { margin-top: 8px; }
+  .column .gantt { background: #fff; padding: 11px 13px 9px; }
+  .column .g-row, .column .g-months { grid-template-columns: 104px 1fr; }
+  .column .grid-lines { left: 117px; right: 13px; }
+  .todo { padding: 12px 14px 8px; }
+  .todo h4 { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; letter-spacing: -0.015em; margin-bottom: 2px; }
+  .todo h4 small { margin-left: auto; font-size: 12px; font-weight: 400; color: var(--ink-3); letter-spacing: 0; }
+  .todo .task { height: 34px; margin: 0 -7px; padding: 0 7px; font-size: 13.5px; }
+  .todo .task .av { margin-left: auto; }
+
+  /* ---------- Links ---------- */
+  svg.links { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+  svg.links path { fill: none; stroke-linecap: round; }
+  svg.links circle { fill: var(--canvas); stroke-width: 1.25; }
+
+  .cursor { position: absolute; left: 0; top: 0; width: 24px; height: 24px; z-index: 10; pointer-events: none; transform-origin: 4px 3px; will-change: transform; }
+</style>
+</head>
+<body>
+
+<div class="stage" id="stage">
+  <div class="board" id="board">
+
+    <!-- Column A: type, location note, lookbook ref -->
+    <div class="card note" style="left:140px;top:190px;width:230px">
+      <div class="specimen">Aa <i>Gg</i></div>
+      <p class="muted" style="margin-top:10px;font-size:12.5px">Instrument Serif for headlines</p>
+    </div>
+    <div class="card note sticky" style="left:140px;top:350px;width:230px">
+      <p>Kestle house has north light until 11am. Shoot mornings?</p>
+      <div class="by"><span class="av jo">JO</span>Jonah</div>
+    </div>
+    <div class="card img" style="left:140px;top:500px;width:230px">
+      <img data-photo="1659522761084-79196b64abe4" style="height:170px" alt="">
+      <div class="caption">Lookbook ref</div>
+    </div>
+
+    <!-- Column B: direction, shoot ideas, palette -->
+    <div class="card img" data-id="direction" style="left:386px;top:190px;width:300px">
+      <img data-photo="1556714147-278e520e3076" style="height:188px" alt="">
+      <div class="caption">Creative direction, out in the open</div>
+    </div>
+    <div class="card note" style="left:386px;top:432px;width:300px">
+      <h4>Shoot ideas</h4>
+      <p class="dash">Hands in fabric, close and tactile</p>
+      <p class="dash">Open sky, early light only</p>
+      <p class="dash">Film as one continuous take</p>
+    </div>
+    <div class="card swatch" style="left:386px;top:580px;width:94px"><div class="chip" style="background:#F2D98B"></div><div class="caption">Butter<span>#F2D98B</span></div></div>
+    <div class="card swatch" style="left:489px;top:580px;width:94px"><div class="chip" style="background:#A9C4E6"></div><div class="caption">Sky<span>#A9C4E6</span></div></div>
+    <div class="card swatch" style="left:592px;top:580px;width:94px"><div class="chip" style="background:#D9A47E"></div><div class="caption">Clay<span>#D9A47E</span></div></div>
+
+    <!-- Column C: brief, casting, deliverables (closest to the plan) -->
+    <div class="card note" data-id="brief" style="left:702px;top:190px;width:300px">
+      <h4>Campaign brief</h4>
+      <p>Halden’s spring linen drop, told through six editorial stills and a 45 second film.</p>
+      <p class="muted">Live 14 April</p>
+    </div>
+    <div class="card img" data-id="photo" style="left:702px;top:350px;width:300px">
+      <img data-photo="1562151270-c7d22ceb586a" style="height:196px" alt="">
+      <div class="caption">Casting ref, look 03</div>
+    </div>
+    <div class="card note" data-id="deliverables" style="left:702px;top:598px;width:300px">
+      <h4>Deliverables</h4>
+      <p class="dash">6 stills, 4:5 and 16:9</p>
+      <p class="dash">Lookbook, 12 pages</p>
+    </div>
+
+    <svg class="links" id="links"></svg>
+
+    <!-- The plan as it lands on the board -->
+    <section class="column" id="column" style="left:1120px">
+      <header><h3>Production plan</h3><small>From 4 cards</small></header>
+      <div class="inner gantt">
+        <div class="g-months"><span></span><div class="track"><span class="m" style="left:0">Feb</span><span class="m" style="left:27.5%">Mar</span><span class="m" style="left:72.5%">Apr</span></div></div>
+        <div class="grid-lines"><i style="left:27.5%"></i><i style="left:72.5%"></i></div>
+        <div class="g-row"><span class="name"><i class="dot" style="background:var(--p1)"></i>Pre-production</span><div class="track"><i class="bar" style="left:10.1%;width:16%;background:var(--p1)"></i></div></div>
+        <div class="g-row"><span class="name"><i class="dot" style="background:var(--p2)"></i>Shoot</span><div class="track"><i class="bar" style="left:30.4%;width:5.8%;background:var(--p2)"></i></div></div>
+        <div class="g-row"><span class="name"><i class="dot" style="background:var(--p3)"></i>Deliver</span><div class="track"><i class="bar" style="left:34.8%;width:56.5%;background:var(--p3)"></i></div></div>
+      </div>
+      <div class="inner todo">
+        <h4><i class="dot" style="background:var(--p1)"></i>Pre-production<small>17 – 28 Feb</small></h4>
+        <div class="task" data-task="casting"><i class="cb"></i>Lock casting shortlist<span class="av ar">AR</span><span class="due">19 Feb</span></div>
+        <div class="task" data-task="scout"><i class="cb"></i>Scout open-sky locations<span class="av jo">JO</span><span class="due">21 Feb</span></div>
+      </div>
+      <div class="inner todo">
+        <h4><i class="dot" style="background:var(--p2)"></i>Shoot<small>4 – 5 Mar</small></h4>
+        <div class="task" data-task="stills"><i class="cb"></i>Six stills, open sky<span class="av ml">ML</span><span class="due">4 Mar</span></div>
+        <div class="task" data-task="film"><i class="cb"></i>45s film, one take<span class="av jo">JO</span><span class="due">5 Mar</span></div>
+      </div>
+      <div class="inner todo">
+        <h4><i class="dot" style="background:var(--p3)"></i>Deliver<small>6 Mar – 14 Apr</small></h4>
+        <div class="task" data-task="lookbook"><i class="cb"></i>Lookbook layout, 12 pages<span class="av ar">AR</span><span class="due">2 Apr</span></div>
+        <div class="task" data-task="copy"><i class="cb"></i>Write launch copy<span class="av ar">AR</span><span class="due">7 Apr</span></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Milanote chrome, cropped to the frame -->
+  <header class="appbar">
+    <div class="crumbs">
+      <span class="home"><svg class="i" viewBox="0 0 10 10"><path d="M2 4.6 5 2l3 2.6V8H2z"/></svg></span><b>Home</b>
+      <span class="sep">›</span><i class="bi" style="background:#E9C46A"></i>Ferne Studio
+      <span class="sep">›</span><i class="bi" style="background:#7FA0D8"></i><b>Soft Ground SS27</b>
+    </div>
+    <span class="board-title">Soft Ground SS27</span>
+    <div class="right">
+      <span class="avs"><span class="av ar">AR</span><span class="av jo">JO</span><span class="av ml">ML</span></span>
+      <span>Share</span>
+      <span>Export<svg class="i" viewBox="0 0 12 12"><path d="M3.5 4.75 6 7.25l2.5-2.5"/></svg></span>
+    </div>
+  </header>
+  <nav class="rail">
+    <span class="tool"><svg class="i" viewBox="0 0 18 18"><rect x="3" y="3.5" width="12" height="11" rx="1"/><path d="M5.5 7h7M5.5 9.5h7M5.5 12h4"/></svg><small>Note</small></span>
+    <span class="tool"><svg class="i" viewBox="0 0 18 18"><path d="M7.6 10.4l2.8-2.8M8.6 5.2l1.2-1.2a2.9 2.9 0 0 1 4.2 4.2l-1.2 1.2M9.4 12.8l-1.2 1.2a2.9 2.9 0 0 1-4.2-4.2l1.2-1.2"/></svg><small>Link</small></span>
+    <span class="tool"><svg class="i" viewBox="0 0 18 18"><rect x="3" y="3.5" width="3.5" height="3.5" rx=".5"/><rect x="3" y="11" width="3.5" height="3.5" rx=".5"/><path d="M9 5.25h6M9 12.75h6"/></svg><small>To-do</small></span>
+    <span class="tool"><svg class="i" viewBox="0 0 18 18"><path d="M3.5 14.5 14.5 3.5M10.5 3.5h4v4"/></svg><small>Line</small></span>
+    <span class="tool"><span class="boardicon"><i></i></span><small>Board</small></span>
+    <span class="tool"><svg class="i" viewBox="0 0 18 18"><rect x="5" y="2.5" width="8" height="13" rx="1"/><path d="M7 6h4M7 8.5h4"/></svg><small>Column</small></span>
+    <span class="tool"><svg class="i" viewBox="0 0 18 18"><path d="M3 4.5h12v7.5H8.5L5.5 14.5V12H3z"/></svg><small>Comment</small></span>
+    <span class="tool"><svg class="i" viewBox="0 0 18 18"><rect x="2.5" y="5.5" width="13" height="7" rx="1.5"/><circle cx="6" cy="9" r=".5"/><circle cx="9" cy="9" r=".5"/><circle cx="12" cy="9" r=".5"/></svg></span>
+    <hr>
+    <span class="tool"><svg class="i" viewBox="0 0 18 18"><rect x="3" y="3" width="12" height="12" rx="1"/><circle cx="7" cy="7" r="1.2"/><path d="M3.5 13.5l3.5-3.3 2.6 2.2 2.2-1.6 2.7 2.3"/></svg><small>Add image</small></span>
+    <span class="tool"><svg class="i" viewBox="0 0 18 18"><path d="M5 2.5h5.5L14 6v9.5H5zM10.5 2.5V6H14"/></svg><small>Upload</small></span>
+    <span class="tool"><svg class="i" viewBox="0 0 18 18"><path d="M3.5 14.5l1-3.5 7.8-7.8a1.7 1.7 0 0 1 2.5 2.5L7 13.5zM11 4.5l2.5 2.5"/></svg><small>Draw</small></span>
+  </nav>
+
+  <!-- Selection action -->
+  <div class="ctx" id="ctx">
+    <span class="count">4 cards</span>
+    <span class="ib"><svg class="i" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/><path d="M8 2.5v11"/></svg></span>
+    <span class="ib"><svg class="i" viewBox="0 0 16 16"><path d="M2.5 2.5v11M5.5 5h8M5.5 11h5"/></svg></span>
+    <span class="vr"></span>
+    <span class="act" id="createBtn"><svg class="i spark" viewBox="0 0 16 16"><path d="M8 2.5c.4 2.9 1.6 4.1 4.5 4.5-2.9.4-4.1 1.6-4.5 4.5-.4-2.9-1.6-4.1-4.5-4.5 2.9-.4 4.1-1.6 4.5-4.5z"/></svg>Create plan</span>
+  </div>
+
+  <!-- Plan preview -->
+  <aside class="panel" id="panel">
+    <div class="p-head">
+      <svg class="i spark" viewBox="0 0 16 16"><path d="M8 2.5c.4 2.9 1.6 4.1 4.5 4.5-2.9.4-4.1 1.6-4.5 4.5-.4-2.9-1.6-4.1-4.5-4.5 2.9-.4 4.1-1.6 4.5-4.5z"/></svg>
+      <h2>Create plan</h2><span class="beta">Beta</span>
+      <div class="from">
+        <span class="stack">
+          <span class="thumb"><img data-photo="1556714147-278e520e3076" alt=""></span>
+          <span class="thumb doc"><i></i><i></i><i style="width:60%"></i></span>
+          <span class="thumb"><img data-photo="1562151270-c7d22ceb586a" alt=""></span>
+          <span class="thumb doc"><i></i><i></i><i style="width:50%"></i></span>
+        </span>
+        From 4 cards
+      </div>
+    </div>
+    <div class="p-body">
+      <div class="row-in">
+        <div class="p-title">Production plan</div>
+        <div class="p-sub">8 weeks, 17 February to 14 April</div>
+      </div>
+      <div class="gantt row-in">
+        <div class="g-months"><span></span><div class="track"><span class="m" style="left:0">Feb</span><span class="m" style="left:27.5%">Mar</span><span class="m" style="left:72.5%">Apr</span></div></div>
+        <div class="grid-lines"><i style="left:27.5%"></i><i style="left:72.5%"></i></div>
+        <div class="g-row"><span class="name"><i class="dot" style="background:var(--p1)"></i>Pre-production</span><div class="track"><i class="bar" style="left:10.1%;width:16%;background:var(--p1)"></i></div></div>
+        <div class="g-row"><span class="name"><i class="dot" style="background:var(--p2)"></i>Shoot</span><div class="track"><i class="bar" style="left:30.4%;width:5.8%;background:var(--p2)"></i></div></div>
+        <div class="g-row"><span class="name"><i class="dot" style="background:var(--p3)"></i>Deliver</span><div class="track"><i class="bar" style="left:34.8%;width:56.5%;background:var(--p3)"></i></div></div>
+      </div>
+      <div class="phase row-in">
+        <div class="phase-h"><i class="dot" style="background:var(--p1)"></i>Pre-production<small>17 – 28 Feb</small></div>
+        <div class="task"><i class="cb"></i>Lock casting shortlist<span class="thumb src"><img data-photo="1562151270-c7d22ceb586a" alt=""></span><span class="av ar">AR</span><span class="due">19 Feb</span></div>
+        <div class="task"><i class="cb"></i>Scout open-sky locations<span class="thumb src"><img data-photo="1556714147-278e520e3076" alt=""></span><span class="av jo">JO</span><span class="due">21 Feb</span></div>
+      </div>
+      <div class="phase row-in">
+        <div class="phase-h"><i class="dot" style="background:var(--p2)"></i>Shoot<small>4 – 5 Mar</small></div>
+        <div class="task"><i class="cb"></i>Six stills, open sky<span class="thumb src"><img data-photo="1562151270-c7d22ceb586a" alt=""></span><span class="av ml">ML</span><span class="due">4 Mar</span></div>
+        <div class="task"><i class="cb"></i>45s film, one take<span class="thumb src doc"><i></i><i></i><i style="width:60%"></i></span><span class="av jo">JO</span><span class="due">5 Mar</span></div>
+      </div>
+      <div class="phase row-in">
+        <div class="phase-h"><i class="dot" style="background:var(--p3)"></i>Deliver<small>6 Mar – 14 Apr</small></div>
+        <div class="task"><i class="cb"></i>Lookbook layout, 12 pages<span class="thumb src doc"><i></i><i></i><i style="width:50%"></i></span><span class="av ar">AR</span><span class="due">2 Apr</span></div>
+        <div class="task" id="pvCopy"><i class="cb"></i>Write launch copy<span class="thumb src doc" id="pvCopySrc"><i></i><i></i><i style="width:60%"></i></span><span class="av ar">AR</span><span class="due">7 Apr</span></div>
+      </div>
+    </div>
+    <div class="p-foot row-in">
+      <span class="meta">Every task links back to its card</span>
+      <span class="btn">Discard</span>
+      <span class="btn primary" id="addBtn">Add to board</span>
+    </div>
+  </aside>
+
+  <div class="peek" id="peek">
+    <div class="kind"><svg class="i" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5"/><path d="M5 6h6M5 8.5h6M5 11h3.5"/></svg>Linked card</div>
+    <div class="note">
+      <h4>Campaign brief</h4>
+      <p>Halden’s spring linen drop, told through six editorial stills and a 45 second film.</p>
+      <p class="muted">Live 14 April</p>
+    </div>
+  </div>
+
+  <svg class="cursor" id="cursor" viewBox="0 0 22 22">
+    <path d="M3 2.2v15.2l3.9-3.7 2.5 5.7 2.6-1.1-2.5-5.6h5.4z" fill="#1F2227" stroke="#fff" stroke-width="1.4" stroke-linejoin="round"/>
+  </svg>
+</div>
+
+<script>
+(() => {
+  /* ---------- Photos ---------- */
+  document.querySelectorAll('img[data-photo]').forEach(img => {
+    const w = Math.max(80, img.clientWidth * 2), h = Math.max(80, img.clientHeight * 2);
+    const focus = img.dataset.photo.startsWith('1562151270') ? '&crop=focalpoint&fp-y=.7' : '';
+    img.src = `https://images.unsplash.com/photo-${img.dataset.photo}?w=${w}&h=${h}&fit=crop${focus}&q=80&auto=format`;
+  });
+
+  /* ---------- Data ---------- */
+  const PAN = 229;                          // the board starts centred, then makes room for the plan
+  const SELECTION = ['direction', 'brief', 'photo', 'deliverables'];
+  // Which source cards each task came from (same data as the preview's thumbnails)
+  const SOURCES = {
+    casting: ['photo'], scout: ['direction'], stills: ['photo', 'deliverables'],
+    film: ['brief'], lookbook: ['deliverables'], copy: ['brief'],
+  };
+  const RESTING = [['brief', 'copy'], ['photo', 'casting'], ['deliverables', 'lookbook']];
+  const HOVER_TASK = 'stills';
+
+  /* ---------- Timeline (seconds) ---------- */
+  const LOOP = 12.4;
+  const T = {
+    clicks: [1.05, 1.5, 1.95, 2.4], ctxIn: 2.55, create: 3.1,
+    pan: 3.2, panelIn: 3.35, rows: 3.7,
+    peek: [5.25, 6.25], add: 6.82,
+    panelOut: 6.92, columnIn: 7.05, links: 7.65,
+    hover: [8.4, 9.35],
+    reset: 11.5,
+  };
+
+  /* ---------- Helpers ---------- */
+  const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+  const seg = (t, start, dur) => clamp((t - start) / dur);
+  const inOut = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+  const out = x => 1 - Math.pow(1 - x, 3);
+  const pulse = (t, at, dur) => Math.sin(Math.PI * seg(t, at, dur));
+  const span = (t, [a, b], fade = .2) => seg(t, a, fade) * (1 - seg(t, b, fade));
+  const mix = (a, b, k) => a + (b - a) * k;
+  const $ = id => document.getElementById(id);
+  const NS = 'http://www.w3.org/2000/svg';
+
+  const stage = $('stage'), board = $('board'), ctx = $('ctx'), createBtn = $('createBtn');
+  const panel = $('panel'), rows = [...panel.querySelectorAll('.row-in')], addBtn = $('addBtn');
+  const pvCopy = $('pvCopy'), pvCopySrc = $('pvCopySrc'), peek = $('peek');
+  const column = $('column'), colCards = [...column.querySelectorAll('.inner')];
+  const panelBars = [...panel.querySelectorAll('.bar')], columnBars = [...column.querySelectorAll('.bar')];
+  const cursor = $('cursor'), svg = $('links');
+  const cards = Object.fromEntries([...board.querySelectorAll('[data-id]')].map(el => [el.dataset.id, el]));
+  const tasks = Object.fromEntries([...column.querySelectorAll('[data-task]')].map(el => [el.dataset.task, el]));
+
+  // One line per source → task pair
+  const links = Object.entries(SOURCES).flatMap(([task, srcs]) => srcs.map(s => {
+    const g = document.createElementNS(NS, 'g');
+    const p = document.createElementNS(NS, 'path'), a = document.createElementNS(NS, 'circle'), b = document.createElementNS(NS, 'circle');
+    a.setAttribute('r', 2.5); b.setAttribute('r', 2.5);
+    g.append(p, a, b); svg.append(g);
+    const resting = RESTING.findIndex(([rs, rt]) => rs === s && rt === task);
+    return { s, task, g, p, a, b, resting };
+  }));
+
+  /* ---------- Layout ---------- */
+  let K = [], B = {}, peekAt;
+  function layout() {
+    const sr = stage.getBoundingClientRect(), k = sr.width / 1600;
+    const box = el => { const r = el.getBoundingClientRect(); return { x: (r.left - sr.left) / k, y: (r.top - sr.top) / k, w: r.width / k, h: r.height / k }; };
+
+    // Board coordinates (no pan)
+    board.style.transform = 'none';
+    const colH = column.offsetHeight;
+    column.style.top = `${(900 - colH) / 2}px`;
+    Object.entries(cards).forEach(([id, el]) => B[id] = box(el));
+    Object.entries(tasks).forEach(([id, el]) => B['t:' + id] = box(el));
+    B.column = box(column);
+
+    // Panel sits where the plan will land
+    panel.style.top = `${(952 - panel.offsetHeight) / 2 + 26}px`;
+    const add = box(addBtn), copySrc = box(pvCopySrc);
+    peek.style.left = `${copySrc.x - 20 - peek.offsetWidth}px`;
+    peek.style.top = `${copySrc.y + copySrc.h / 2 - peek.offsetHeight / 2}px`;
+
+    // Selection action, centred above the selected cards at the opening pan
+    const sel = SELECTION.map(id => B[id]);
+    const minX = Math.min(...sel.map(b => b.x)) + PAN, maxX = Math.max(...sel.map(b => b.x + b.w)) + PAN;
+    ctx.style.left = `${(minX + maxX) / 2 - ctx.offsetWidth / 2}px`;
+    ctx.style.top = `${Math.min(...sel.map(b => b.y)) - ctx.offsetHeight - 16}px`;
+    const create = box(createBtn);
+
+    const on = (id, fx, fy, dx = PAN) => [B[id].x + B[id].w * fx + dx, B[id].y + B[id].h * fy];
+    const hov = B['t:' + HOVER_TASK];
+    K = [
+      [0, 1380, 980], [0.35, 1380, 980],
+      [1.0, ...on('direction', .55, .4)], [1.12, ...on('direction', .55, .4)],
+      [1.45, ...on('brief', .5, .45)], [1.57, ...on('brief', .5, .45)],
+      [1.9, ...on('photo', .55, .42)], [2.02, ...on('photo', .55, .42)],
+      [2.35, ...on('deliverables', .48, .5)], [2.62, ...on('deliverables', .48, .5)],
+      [3.0, create.x + create.w * .55, create.y + create.h * .55], [3.2, create.x + create.w * .55, create.y + create.h * .55],
+      [4.3, 1230, 300], [4.85, 1230, 300],
+      [5.2, copySrc.x + copySrc.w * .6, copySrc.y + copySrc.h * .65], [6.3, copySrc.x + copySrc.w * .6, copySrc.y + copySrc.h * .65],
+      [6.72, add.x + add.w * .5, add.y + add.h * .55], [6.95, add.x + add.w * .5, add.y + add.h * .55],
+      [7.6, 1500, 800], [8.0, 1500, 800],
+      [8.38, hov.x + hov.w * .42, hov.y + hov.h * .55], [9.35, hov.x + hov.w * .42, hov.y + hov.h * .55],
+      [10.0, 1380, 980], [LOOP, 1380, 980],
+    ];
+  }
+
+  function cursorAt(t) {
+    let i = 0;
+    while (i < K.length - 2 && t > K[i + 1][0]) i++;
+    const [t0, x0, y0] = K[i], [t1, x1, y1] = K[i + 1];
+    const k = inOut(clamp((t - t0) / (t1 - t0 || 1)));
+    const len = Math.hypot(x1 - x0, y1 - y0) || 1;
+    const bend = Math.sin(Math.PI * k) * Math.min(28, len * .06);   // a slight, natural arc
+    return [x0 + (x1 - x0) * k - (y1 - y0) / len * bend, y0 + (y1 - y0) * k + (x1 - x0) / len * bend];
+  }
+
+  /* ---------- Frame ---------- */
+  function render(t) {
+    // Board: centred, then eases left as the plan arrives; back again for the loop
+    const pan = PAN * (1 - inOut(seg(t, T.pan, .85)) + inOut(seg(t, T.reset + .2, .8)));
+    board.style.transform = `translate3d(${pan}px, 0, 0)`;
+
+    // Cursor
+    const [cx, cy] = cursorAt(t);
+    const press = Math.max(...[...T.clicks, T.create, T.add].map(c => pulse(t, c - .06, .15)));
+    cursor.style.transform = `translate3d(${cx - 4}px, ${cy - 3}px, 0) scale(${1 - press * .1})`;
+
+    // Shift-click selection, then the source highlight while hovering a placed task
+    const hover = span(t, T.hover);
+    const deselect = 1 - seg(t, T.panelOut, .2);
+    Object.entries(cards).forEach(([id, el]) => {
+      const i = SELECTION.indexOf(id);
+      const sel = i >= 0 ? out(seg(t, T.clicks[i], .1)) * deselect : 0;
+      const lit = SOURCES[HOVER_TASK].includes(id) ? hover : 0;
+      el.style.outlineColor = `rgba(var(--accent), ${Math.max(sel * (1 - .45 * out(seg(t, T.panelIn, .3))), lit)})`;
+    });
+
+    // Selection action
+    const ci = out(seg(t, T.ctxIn, .22));
+    ctx.style.opacity = ci * (1 - seg(t, T.pan, .16));
+    ctx.style.transform = `translate3d(0, ${(1 - ci) * 5}px, 0)`;
+    createBtn.style.background = `rgba(240, 238, 234, ${seg(t, 2.92, .1)})`;
+    createBtn.style.transform = `scale(${1 - pulse(t, T.create - .05, .14) * .04})`;
+
+    // Preview panel
+    const pi = out(seg(t, T.panelIn, .5)), po = seg(t, T.panelOut, .3);
+    panel.style.opacity = pi * (1 - po);
+    panel.style.transform = `translate3d(${(1 - pi) * 20}px, 0, 0) scale(${1 - out(po) * .02})`;
+    rows.forEach((el, i) => {
+      const k = out(seg(t, T.rows + i * .12, .45));
+      el.style.opacity = k;
+      el.style.transform = `translate3d(0, ${(1 - k) * 6}px, 0)`;
+    });
+    const pk = span(t, T.peek, .16);
+    pvCopy.style.background = `rgba(245, 244, 241, ${pk})`;
+    pvCopySrc.style.outlineColor = `rgba(var(--accent), ${pk})`;
+    peek.style.opacity = out(pk);
+    peek.style.transform = `translate3d(${(1 - out(pk)) * 8}px, 0, 0) scale(${.97 + .03 * out(pk)})`;
+    const ah = seg(t, 6.62, .1);
+    addBtn.style.background = `rgb(${30 + ah * 22}, ${31 + ah * 22}, ${34 + ah * 22})`;
+    addBtn.style.transform = `scale(${1 - pulse(t, T.add - .05, .14) * .04})`;
+
+    // The plan lands on the board
+    const gone = 1 - seg(t, T.reset, .4);
+    const cin = out(seg(t, T.columnIn, .5));
+    column.style.opacity = cin * gone;
+    column.style.transform = `translate3d(0, ${(1 - cin) * 8}px, 0)`;
+    colCards.forEach((el, i) => {
+      const k = out(seg(t, T.columnIn + .1 + i * .09, .45));
+      el.style.opacity = k;
+      el.style.transform = `translate3d(0, ${(1 - k) * 5}px, 0)`;
+    });
+    panelBars.forEach((el, i) => { el.style.transform = `scaleX(${inOut(seg(t, T.rows + .4 + i * .1, .55))})`; });
+    columnBars.forEach((el, i) => { el.style.transform = `scaleX(${inOut(seg(t, T.columnIn + .3 + i * .1, .55))})`; });
+    tasks[HOVER_TASK].style.background = `rgba(var(--accent), ${.06 * hover})`;
+
+    // Links: a few quiet lines at rest; hovering a task lights up only its own sources
+    links.forEach(l => {
+      const s = B[l.s], d = B['t:' + l.task];
+      const ax = s.x + s.w, ay = s.y + s.h / 2 + (l.task === 'stills' ? (l.s === 'photo' ? 26 : -12) : 0);
+      const bx = d.x - 7, by = d.y + d.h / 2;
+      const dx = (bx - ax) * .5;
+      l.p.setAttribute('d', `M${ax} ${ay} C${ax + dx} ${ay}, ${bx - dx} ${by}, ${bx} ${by}`);
+      l.a.setAttribute('cx', ax); l.a.setAttribute('cy', ay);
+      l.b.setAttribute('cx', bx); l.b.setAttribute('cy', by);
+      const len = l.p.getTotalLength();
+
+      const own = l.task === HOVER_TASK;
+      const draw = own ? out(seg(t, T.hover[0], .35)) : l.resting >= 0 ? inOut(seg(t, T.links + l.resting * .14, .6)) : 0;
+      l.p.style.strokeDasharray = len;
+      l.p.style.strokeDashoffset = len * (1 - draw);
+
+      const quiet = l.resting >= 0 ? mix(.5, .15, hover) : 0;   // resting lines step back during a hover
+      const alpha = own ? hover : quiet;
+      const col = own ? `rgba(var(--accent), .85)` : 'rgba(120, 112, 100, .9)';
+      l.p.style.stroke = col; l.a.style.stroke = col; l.b.style.stroke = col;
+      l.p.style.strokeWidth = own ? 1.6 : 1.2;
+      l.g.style.opacity = alpha * gone;
+      l.a.style.opacity = clamp(draw * 5); l.b.style.opacity = clamp((draw - .85) / .15);
+    });
+  }
+
+  /* ---------- Fit stage to viewport ---------- */
+  function fit() {
+    const s = Math.min(innerWidth / 1600, innerHeight / 900);
+    stage.style.transform = `scale(${s}) translate(-50%, -50%)`;
+  }
+  fit();
+  addEventListener('resize', fit);
+
+  /* ---------- Playback ----------
+     ?t=10.8  freeze on a frame (10.8 is the settled final board; 0.5 is the opening board)
+     space    pause / resume                                                            */
+  const params = new URLSearchParams(location.search);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const frozen = params.has('t') ? parseFloat(params.get('t')) : reduce ? 10.8 : null;
+
+  document.fonts.ready.then(() => {
+    layout();
+    window.renderFrame = render;   // handy for exporting stills
+    if (frozen !== null) { render(frozen); return; }
+
+    let paused = false, offset = 0, start = performance.now();
+    addEventListener('keydown', e => {
+      if (e.code !== 'Space') return;
+      e.preventDefault();
+      paused = !paused;
+      if (!paused) start = performance.now() - offset * 1000;
+    });
+    (function tick(now) {
+      if (!paused) {
+        offset = ((now - start) / 1000) % LOOP;
+        render(offset);
+      }
+      requestAnimationFrame(tick);
+    })(performance.now());
+  });
+})();
+</script>
+</body>
+</html>
